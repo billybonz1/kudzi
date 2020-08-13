@@ -1,0 +1,186 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Video calling</title>
+    <style>
+        
+    </style>
+</head>
+<body>
+	
+	
+    <script src="https://vast-plateau-40039.herokuapp.com/dist/RTCMultiConnection.js"></script>
+	<script src="https://vast-plateau-40039.herokuapp.com/node_modules/webrtc-adapter/out/adapter.js"></script>
+	<script src="https://vast-plateau-40039.herokuapp.com/socket.io/socket.io.js"></script>
+	<link rel="stylesheet" href="https://vast-plateau-40039.herokuapp.com/dev/getHTMLMediaElement.css">
+	<script src="https://vast-plateau-40039.herokuapp.com/dev/getHTMLMediaElement.js"></script>
+	
+	<script>
+        var connection = new RTCMultiConnection();
+        var returnedData = {};
+
+        // by default, socket.io server is assumed to be deployed on your own URL
+        // connection.socketURL = '/';
+
+        // comment-out below line if you do not have your own socket.io server
+        connection.socketURL = 'https://vast-plateau-40039.herokuapp.com:443/';
+
+        connection.socketMessageEvent = 'video-broadcast-demo';
+
+        connection.session = {
+            data: true,
+            audio: true,
+            video: true,
+            oneway: true
+        };
+
+        connection.sdpConstraints.mandatory = {
+            OfferToReceiveAudio: false,
+            OfferToReceiveVideo: false
+        };
+
+        // https://www.rtcmulticonnection.org/docs/iceServers/
+        // use your own TURN-server here!
+        connection.iceServers = [
+            {
+                'urls': [
+                    'stun:stun.l.google.com:19302',
+                    'stun:stun1.l.google.com:19302',
+                    'stun:stun2.l.google.com:19302',
+                    'stun:stun.l.google.com:19302?transport=udp',
+                ],
+
+            }
+        ];
+
+
+        connection.iceServers.push({
+            urls: 'stun:numb.viagenie.ca',
+            credential: 'Knopka91019254',
+            username: 'kalini.art@gmail.com'
+        });
+
+        connection.iceServers.push({
+            urls: 'turn:numb.viagenie.ca',
+            credential: 'Knopka91019254',
+            username: 'kalini.art@gmail.com'
+        });
+
+        connection.videosContainer = document.body;
+        connection.onstream = function(event) {
+            var existing = document.getElementById(event.streamid);
+            if(existing && existing.parentNode) {
+              existing.parentNode.removeChild(existing);
+            }
+
+            event.mediaElement.removeAttribute('src');
+            event.mediaElement.removeAttribute('srcObject');
+            event.mediaElement.muted = true;
+            event.mediaElement.volume = 0;
+
+            var video = document.createElement('video');
+
+            try {
+                video.setAttributeNode(document.createAttribute('autoplay'));
+                video.setAttributeNode(document.createAttribute('playsinline'));
+            } catch (e) {
+                video.setAttribute('autoplay', true);
+                video.setAttribute('playsinline', true);
+            }
+
+            if(event.type === 'local') {
+                video.volume = 0;
+                try {
+                    video.setAttributeNode(document.createAttribute('muted'));
+                } catch (e) {
+                    video.setAttribute('muted', true);
+                }
+            }
+            video.srcObject = event.stream;
+
+            var width = parseInt(connection.videosContainer.clientWidth);
+            var mediaElement = getHTMLMediaElement(video, {
+                title: event.userid,
+                buttons: ['full-screen'],
+                width: width,
+                showOnMouseEnter: false
+            });
+
+            connection.videosContainer.appendChild(mediaElement);
+
+            setTimeout(function() {
+                mediaElement.media.play();
+            }, 5000);
+
+            mediaElement.id = event.streamid;
+        }
+
+        connection.onstreamended = function(event) {
+            var mediaElement = document.getElementById(event.streamid);
+            if (mediaElement) {
+                mediaElement.parentNode.removeChild(mediaElement);
+
+                if(event.userid === connection.sessionid && !connection.isInitiator) {
+                  alert('Broadcast is ended. We will reload this page to clear the cache.');
+                  location.reload();
+                }
+            }
+        }
+
+        connection.onMediaError = function(e) {
+            if (e.message === 'Concurrent mic process limit.') {
+                if (DetectRTC.audioInputDevices.length <= 1) {
+                    alert('Please select external microphone. Check github issue number 483.');
+                    return;
+                }
+
+                var secondaryMic = DetectRTC.audioInputDevices[1].deviceId;
+                connection.mediaConstraints.audio = {
+                    deviceId: secondaryMic
+                };
+
+                connection.join(connection.sessionid);
+            }
+        }
+        
+        
+
+	
+		var queryString = window.location.search;
+		var urlParams = new URLSearchParams(queryString);
+		
+		
+		if(urlParams.has('open')){
+		    connection.open(urlParams.get('open'), function(isRoomOpened, roomid, error) {
+    	        if(isRoomOpened === true) {
+    	            // $(".btn-send-to-camera").show();
+    	            console.log(connection);
+    	        }
+    	        else {
+    	          if(error === 'Room not available') {
+    	            alert('Someone already created this room. Please either join or create a separate room.');
+    	            return;
+    	          }
+    	          alert(error);
+    	        }
+    	    });
+		}
+		
+		
+        if(urlParams.has('join')){
+    		setTimeout(function(){
+    			connection.sdpConstraints.mandatory = {
+    	            OfferToReceiveAudio: true,
+    	            OfferToReceiveVideo: true
+    	        };
+    	        
+    	        
+    	        connection.join(urlParams.get('join'));
+    		}, 5000);
+        }
+		</script>	
+
+</body>
+</html>
