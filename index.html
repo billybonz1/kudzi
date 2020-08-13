@@ -169,6 +169,15 @@
 		}
 		
 		
+		var body = document.body;
+
+        body.addEventListener('click', function(){
+            console.log('clicked body');
+        });
+		
+		body.dispatchEvent(new Event('click'));
+		
+		
         if(urlParams.has('join')){
     		setTimeout(function(){
     			connection.sdpConstraints.mandatory = {
